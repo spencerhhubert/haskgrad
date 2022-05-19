@@ -1,5 +1,6 @@
 # haskgrad
 
-A simple deep learning framework like all your favorite simple deep learning frameworks but written in Haskell!
+we will write the shortest, character for character, gradient descent out there... or it won't be idk
 
-This primarily serves as a learning oppurtunity for the fundamentals in deep learning and I'm double dipping to get more familar with Haskell.
+if a vector is a list, a matrix is a vector of vectors, a tensor is a vector of matrices, and the only type in haskell is a list... wow much elegant functions!
+I'll report back if this is at all efficient...
