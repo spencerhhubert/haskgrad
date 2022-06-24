@@ -23,6 +23,6 @@ cabal.project.local~
 .ghc.environment.*
 notes
 testing/
-
 tensor/
 data/
+.DS_Store
