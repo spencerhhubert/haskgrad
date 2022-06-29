@@ -3,18 +3,22 @@ module Main where
 import Haskgrad
 import Vector
 import Matrix
-  
-x = [1..4]
-b1 = [1..2]
-w1 = generateFloatMatrix 2 4
-z1 = w1 `dot` x + b1
-a1 = map sigmoid input_layer
 
+input_size = 4
+hidden_size = 2
+output_size = 1
 
-
+x = generateFloatMatrix input_size 1
+b1 = generateFloatMatrix hidden_size 1
+w1 = generateFloatMatrix hidden_size input_size
+z2 = (w1 `multiply` x) `addMatrix` b1
+a2 = mapMatrix sigmoid z2
+b2 = generateFloatMatrix hidden_size 1
+w2 = generateFloatMatrix hidden_size hidden_size
+z3 = (w2 `multiply` a2) `addMatrix` b2
+a3 = mapMatrix sigmoid z3
+w3 = generateFloatMatrix output_size hidden_size
+s = w3 `multiply` a3
 
 main :: IO ()
-main = print $ show "ok"
-
---let's learn a simple function
-float_vector = [0.00,0.01..10.00]
+main = print $ show s
