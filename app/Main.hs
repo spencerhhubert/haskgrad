@@ -21,7 +21,7 @@ a3 = mapMatrix sigmoid z3
 w3 = generateFloatMatrix output_size hidden_size
 s = w3 `multiply` a3
 
-some_shapes = [(Shape 4 1), (Shape 2 1), (Shape 2 1), (Shape 1 1)]
+some_shapes = [(Shape 4 1), (Shape 2 1), (Shape 2 1), (Shape 2 1)]
 new_network = initNet some_shapes
 
 input :: Matrix Float
@@ -30,4 +30,6 @@ input = [[1.0..4.0]]
 propped = propForward input new_network sigmoid
 
 main :: IO()
-main = print $ show propped
+main = do
+        print $ show propped
+        print s
