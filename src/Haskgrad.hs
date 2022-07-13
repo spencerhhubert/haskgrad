@@ -7,37 +7,61 @@ import MyRandom
 data Shape = Shape Int Int
         deriving (Show, Eq)
 type Architecture = [Shape]
-data Layer = Layer (Matrix Float) (Matrix Float)
-        deriving (Show, Eq)
-data NN = NN [Layer]
-        deriving (Show, Eq)
+--                     function           derivative
+data ActFunc = ActFunc ((Float -> Float), (Float -> Float))
+data CostFunc = CostFunc ((Vector Float -> Vector Float -> Float), (Vector Float -> Vector Float -> Float))
+
+data Slice = Slice (Int, Int) ActFunc
+data Arch = Arch [Slice] CostFunc
+--                 weight         bias
+data Layer = Layer (Matrix Float) (Matrix Float) ActFunc
+data NN = NN [Layer] CostFunc
 
 rfm = randomFloatMatrix
 
-initNet :: Architecture -> NN
-initNet arch = NN $ appendNet arch where
-        appendNet :: [Shape] -> [Layer]
-        appendNet arch
-                | length arch == 1 || length arch == 1 = [Layer (rfm 0 0) (rfm 0 0)]
-                | length arch == 2 = [Layer (weights (head arch) (jump arch)) (bias $ jump arch)]
-                | otherwise = Layer (weights (head arch) (jump arch)) (bias (jump arch)) : appendNet (tail arch)
+initNet :: Arch -> NN
+initNet (Arch slices costFunc) = NN (appendNet slices) costFunc where
+        appendNet :: [Slice] -> [Layer]
+        appendNet slices
+                | length slices == 0 || length slices == 1 = [Layer (rfm 0 0) (rfm 0 0) nothingFunc] --nothing layer
+                | length slices == 2 = [Layer (weights (head slices) (jump slices)) (bias $ jump slices) (actFunc $ jump slices)]
+                | otherwise = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (actFunc $ jump slices) : appendNet (tail slices)
         weights x y = rfm (height y) (height x)
         bias x = rfm (height x) (depth x)
+        actFunc (Slice shape funcs) = funcs
+        nothingFunc = ActFunc ((\x -> x), (\x -> x))
 
-type ActivationFunc = (Float -> Float)
-
-propForward :: Matrix Float -> NN -> ActivationFunc -> Matrix Float
-propForward input (NN layers) act_func = foldl step input layers where
+propForward :: Matrix Float -> NN -> Matrix Float
+propForward input (NN layers costFunc) = foldl step input layers where
         step :: Matrix Float -> Layer -> Matrix Float
-        step x l = mapMatrix act_func $ ((weights l) `multiply` x) `addMatrix` (bias l)
-        weights (Layer w b) = w
-        bias (Layer w b) = b
+        step x (Layer w b (ActFunc (f, f'))) = (mapMatrix f (w `multiply` x)) `addMatrix` b
 
-gradients :: NN -> Layer -> NN
-gradients network finalLayer = muhNetwork
+--layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
+--so do we need to store the values from before the activation function?
+
+--gradients :: NN -> Matrix Float -> Matrix Float -> (Float -> Float) -> (Float -> Float) -> NN
+--gradients network actual desired act' cost' = where
+--        foldr func (cost' actual desired)
+
+--foldr :: (a -> b -> b) -> b -> [a] -> b
 
 descend :: NN -> NN -> Float -> NN
 descend network gradients learningRate = muhNetwork
+
+mse :: Vector Float -> Vector Float -> Float
+mse actual desired = (/) (sum $ map square (x `sub` y) :: Float) l where
+    x = actual
+    y = desired
+    square x = x^2
+    l = fromIntegral $ length x :: Float
+
+mse' :: Vector Float -> Vector Float -> Float
+mse' actual desired = (*) (2/l) (sum (x `sub` y) :: Float) where
+    x = actual
+    y = desired
+    l = fromIntegral $ length x :: Float
+
+muhNetwork = NN [Layer (rfm 1 1) (rfm 1 1) $ ActFunc (relu, relu')] $ CostFunc (mse, mse')
 
 jump :: [a] -> a
 jump x = head $ tail x
@@ -45,11 +69,11 @@ jump x = head $ tail x
 justMid :: [a] -> [a]
 justMid x = tail $ init x
 
-height :: Shape -> Int
-height (Shape x y) = x
+height :: Slice -> Int
+height (Slice dims func) = fst dims
 
-depth :: Shape -> Int
-depth (Shape x y) = y
+depth :: Slice -> Int
+depth (Slice dims func) = snd dims
 
 merge :: [a] -> [a] -> [a]
 merge xs     []     = xs
@@ -59,5 +83,13 @@ merge (x:xs) (y:ys) = x : y : merge xs ys
 sigmoid :: Float -> Float
 sigmoid x = 1 / (1 + (exp (-x)))
 
-sigmoidPrime :: Float -> Float
-sigmoidPrime x = (exp x) / (((exp x) + 1)^2)
+sigmoid' :: Float -> Float
+sigmoid' x = (exp x) / (((exp x) + 1)^2)
+
+relu :: Float -> Float
+relu x = max 0.0 x
+
+relu' :: Float -> Float
+relu' x
+    | x < 0 = 0.0
+    | otherwise = 1.0
