@@ -34,14 +34,14 @@ initNet (Arch slices costFunc) = NN (appendNet slices) costFunc where
 propForward :: Matrix Float -> NN -> Matrix Float
 propForward input (NN layers costFunc) = foldl step input layers where
         step :: Matrix Float -> Layer -> Matrix Float
-        step x (Layer w b (ActFunc (act, act'))) = (mapMatrix act (w `multiply` x)) `addMatrix` b
+        step x (Layer w b (ActFunc (act, act'))) = mapMatrix act $ (w `multiply` x) `addMatrix` b
 
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
 
-gradients :: NN -> Matrix Float -> Matrix Float -> NN
-gradients (NN layers (CostFunc (cost, cost'))) actual desired = scanr error (cost' actual desired) layers where
-        error (Layer w b (ActFunc (act, act'))) = act' z
+--gradients :: NN -> Matrix Float -> Matrix Float -> NN
+--gradients (NN layers (CostFunc (cost, cost'))) actual desired = scanr error (cost' actual desired) layers where
+--        error (Layer w b (ActFunc (act, act'))) = act' z
         --think need store z (before activation) values in layer :(
 
 --foldr :: (a -> b -> b) -> b -> [a] -> b
