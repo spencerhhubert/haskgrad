@@ -24,24 +24,25 @@ initNet (Arch slices costFunc) = NN (appendNet slices) costFunc where
         appendNet :: [Slice] -> [Layer]
         appendNet slices
                 | length slices == 0 || length slices == 1 = [Layer (rfm 0 0) (rfm 0 0) nothingFunc] --nothing layer
-                | length slices == 2 = [Layer (weights (head slices) (jump slices)) (bias $ jump slices) (actFunc $ jump slices)]
-                | otherwise = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (actFunc $ jump slices) : appendNet (tail slices)
+                | length slices == 2 = [Layer (weights (head slices) (jump slices)) (bias $ jump slices) (getActFunc $ jump slices)]
+                | otherwise = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (getActFunc $ jump slices) : appendNet (tail slices)
         weights x y = rfm (height y) (height x)
         bias x = rfm (height x) (depth x)
-        actFunc (Slice shape funcs) = funcs
+        getActFunc (Slice shape actFunc) = actFunc
         nothingFunc = ActFunc ((\x -> x), (\x -> x))
 
 propForward :: Matrix Float -> NN -> Matrix Float
 propForward input (NN layers costFunc) = foldl step input layers where
         step :: Matrix Float -> Layer -> Matrix Float
-        step x (Layer w b (ActFunc (f, f'))) = (mapMatrix f (w `multiply` x)) `addMatrix` b
+        step x (Layer w b (ActFunc (act, act'))) = (mapMatrix act (w `multiply` x)) `addMatrix` b
 
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
 
---gradients :: NN -> Matrix Float -> Matrix Float -> NN
---gradients network actual desired = where
---        foldr func (cost' actual desired)
+gradients :: NN -> Matrix Float -> Matrix Float -> NN
+gradients (NN layers (CostFunc (cost, cost'))) actual desired = scanr error (cost' actual desired) layers where
+        error (Layer w b (ActFunc (act, act'))) = act' z
+        --think need store z (before activation) values in layer :(
 
 --foldr :: (a -> b -> b) -> b -> [a] -> b
 
