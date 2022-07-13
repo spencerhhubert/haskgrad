@@ -39,8 +39,8 @@ propForward input (NN layers costFunc) = foldl step input layers where
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
 
---gradients :: NN -> Matrix Float -> Matrix Float -> (Float -> Float) -> (Float -> Float) -> NN
---gradients network actual desired act' cost' = where
+--gradients :: NN -> Matrix Float -> Matrix Float -> NN
+--gradients network actual desired = where
 --        foldr func (cost' actual desired)
 
 --foldr :: (a -> b -> b) -> b -> [a] -> b
@@ -49,17 +49,12 @@ descend :: NN -> NN -> Float -> NN
 descend network gradients learningRate = muhNetwork
 
 mse :: Vector Float -> Vector Float -> Float
-mse actual desired = (/) (sum $ map square (x `sub` y) :: Float) l where
-    x = actual
-    y = desired
-    square x = x^2
-    l = fromIntegral $ length x :: Float
+mse actual desired = (/) (sum $ map (\x -> x^2) (actual `sub` desired) :: Float) l where
+    l = fromIntegral $ length actual :: Float
 
 mse' :: Vector Float -> Vector Float -> Float
-mse' actual desired = (*) (2/l) (sum (x `sub` y) :: Float) where
-    x = actual
-    y = desired
-    l = fromIntegral $ length x :: Float
+mse' actual desired = (*) (2/l) (sum (actual `sub` desired) :: Float) where
+    l = fromIntegral $ length actual :: Float
 
 muhNetwork = NN [Layer (rfm 1 1) (rfm 1 1) $ ActFunc (relu, relu')] $ CostFunc (mse, mse')
 
