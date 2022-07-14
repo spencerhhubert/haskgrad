@@ -38,13 +38,13 @@ propForward :: Matrix Float -> NN -> NN
 --construct a fake input "layer" from the input matrix. this is not pleasant
 propForward input (NN layers costFunc) = NN (scanl step (Layer emptyMat emptyMat input nothingFunc) layers) costFunc
 
-apply :: Matrix Float -> NN -> Matrix Float
-apply input (NN layers costFunc) = grabZed $ step (Layer emptyMat emptyMat input nothingFunc) $ last layers where
+grabOutput :: NN -> Matrix Float
+grabOutput (NN layers _) = grabZed $ last layers where
     grabZed (Layer _ _ z _) = z
 
 --actual primary function for sending data through the network without preserving information for gradients
 passThrough :: Matrix Float -> NN -> Matrix Float
-passThrough x nn = apply x (propForward x nn)
+passThrough x nn = grabOutput (propForward x nn)
 
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
