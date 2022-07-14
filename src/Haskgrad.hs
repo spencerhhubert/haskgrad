@@ -36,7 +36,7 @@ step (Layer w0 b0 z0 a0) (Layer w1 b1 z1 (ActFunc (act, act'))) = Layer w1 b1 (m
 
 propForward :: Matrix Float -> NN -> NN
 --construct a fake input "layer" from the input matrix. this is not pleasant
-propForward input (NN layers costFunc) = NN (scanl step (Layer emptyMat emptyMat input nothingFunc) layers) costFunc where
+propForward input (NN layers costFunc) = NN (scanl step (Layer emptyMat emptyMat input nothingFunc) layers) costFunc
 
 apply :: Matrix Float -> NN -> Matrix Float
 apply input (NN layers costFunc) = grabZed $ step (Layer emptyMat emptyMat input nothingFunc) $ last layers where
@@ -49,15 +49,22 @@ passThrough x nn = apply x (propForward x nn)
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
 
---gradients :: NN -> Matrix Float -> Matrix Float -> NN
---gradients (NN layers (CostFunc (cost, cost'))) actual desired = scanr error (cost' actual desired) layers where
---        error (Layer w b (ActFunc (act, act'))) = act' z
-        --think need store z (before activation) values in layer :(
-
---foldr :: (a -> b -> b) -> b -> [a] -> b
+gradients :: NN -> Matrix Float -> Matrix Float -> NN
+--                                                                               initial output layer error. this is a scalar we convert to a 1x1 matrix because jank
+gradients (NN layers (CostFunc (cost, cost'))) actual desired = NN (scanr error (Layer emptyMat emptyMat [[cost' (actual !! 0) (desired !! 0)]] nothingFunc) layers) (CostFunc (cost, cost')) where
+    error :: Layer -> Layer -> Layer
+    error (Layer w0 b0 z0 a0) (Layer w1 b1 z1 (ActFunc (act, act'))) = Layer ((z0 `multiply` (mapMatrix act' z0)) `multiply` (transpose z1)) b1 z1 (ActFunc (act, act'))
 
 descend :: NN -> NN -> Float -> NN
-descend network gradients learningRate = muhNetwork
+descend network gradients learningRate = zipWithNN (-) network (mapNN (\x -> x*learningRate) gradients)
+
+mapNN :: (Float -> Float) -> NN -> NN
+mapNN f (NN layers costFunc) = NN (map (\(Layer w b z c) -> Layer (mapMatrix f w) b z c) layers) costFunc
+
+zipWithNN :: (Float -> Float -> Float) -> NN -> NN -> NN
+zipWithNN f (NN layers0 costFunc0) (NN layers1 costFunc1) = NN thing costFunc1 where
+    thing = zipWith func layers0 layers1
+    func = (\(Layer w0 b0 z0 c0) (Layer w1 b1 z1 c1) -> Layer (zipWithMatrix f w0 w1) b0 z0 c0)
 
 mse :: Vector Float -> Vector Float -> Float
 mse actual desired = (/) (sum $ map (\x -> x^2) (actual `sub` desired) :: Float) l where
