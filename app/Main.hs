@@ -37,10 +37,21 @@ actFunc = ActFunc (relu, relu')
 costFunc = CostFunc (mse, mse')
 slices = [Slice (4,1) actFunc, Slice (10,1) actFunc, Slice (10,1) actFunc, Slice (8,1) actFunc, Slice (6,1) actFunc, Slice (4,1) actFunc]
 arch = Arch slices costFunc
-network = initNet arch
+net = initNet arch
 
-propped = propForward input network
+propped = propForward input net
+output = grabOutput propped
+grads = gradients net output expected
+descended = descend net grads 1.0
 
+grabWeights :: NN -> Int -> Matrix Float
+grabWeights (NN layers _) li = grab $ layers !! li where grab (Layer w _ _ _) = w 
+
+initial_network_weights = grabWeights net 3
+descended_network_weights = grabWeights descended 3
 
 main :: IO()
-main = print 10
+main = do
+    print $ dimensions initial_network_weights
+    print "\n\n\n"
+    print $ dimensions descended_network_weights 
