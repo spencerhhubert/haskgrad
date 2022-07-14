@@ -31,18 +31,20 @@ initNet (Arch slices costFunc) = NN (appendNet slices) costFunc where
 	zed x = rfm (height x) (depth x)
         getActFunc (Slice shape actFunc) = actFunc
 
-apply :: Matrix Float -> NN -> Matrix Float
-apply input (NN layers costFunc) = foldl step input layers where
-        step :: Matrix Float -> Layer -> Matrix Float
-        step x (Layer w b z (ActFunc (act, act'))) = mapMatrix act $ (w `multiply` x) `addMatrix` b
+step :: Layer -> Layer -> Layer
+step (Layer w0 b0 z0 a0) (Layer w1 b1 z1 (ActFunc (act, act'))) = Layer w1 b1 (mapMatrix act $ (w1 `multiply` z0) `addMatrix` b1) $ ActFunc (act, act')
 
 propForward :: Matrix Float -> NN -> NN
 --construct a fake input "layer" from the input matrix. this is not pleasant
 propForward input (NN layers costFunc) = NN (scanl step (Layer emptyMat emptyMat input nothingFunc) layers) costFunc where
-        step :: Layer -> Layer -> Layer
-        step (Layer w0 b0 z0 a0) (Layer w1 b1 z1 (ActFunc (act, act'))) = Layer w1 b1 (mapMatrix act $ (w1 `multiply` z0) `addMatrix` b1) $ ActFunc (act, act')
 
+apply :: Matrix Float -> NN -> Matrix Float
+apply input (NN layers costFunc) = grabZed $ step (Layer emptyMat emptyMat input nothingFunc) $ last layers where
+    grabZed (Layer _ _ z _) = z
 
+--actual primary function for sending data through the network without preserving information for gradients
+passThrough :: Matrix Float -> NN -> Matrix Float
+passThrough x nn = apply x (propForward x nn)
 
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
