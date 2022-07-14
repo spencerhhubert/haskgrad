@@ -4,37 +4,45 @@ import Vector
 import Matrix
 import MyRandom
 
-data Shape = Shape Int Int
-        deriving (Show, Eq)
-type Architecture = [Shape]
+data Slice = Slice (Int, Int) ActFunc
+data Arch = Arch [Slice] CostFunc
+--                 weight         bias           output without activation
+data Layer = Layer (Matrix Float) (Matrix Float) (Matrix Float) ActFunc
+data NN = NN [Layer] CostFunc
 --                     function           derivative
 data ActFunc = ActFunc ((Float -> Float), (Float -> Float))
 data CostFunc = CostFunc ((Vector Float -> Vector Float -> Float), (Vector Float -> Vector Float -> Float))
 
-data Slice = Slice (Int, Int) ActFunc
-data Arch = Arch [Slice] CostFunc
---                 weight         bias
-data Layer = Layer (Matrix Float) (Matrix Float) ActFunc
-data NN = NN [Layer] CostFunc
-
 rfm = randomFloatMatrix
+emptyMat = rfm 0 0
+nothingFunc = ActFunc ((\x -> x), (\x -> x))
 
 initNet :: Arch -> NN
 initNet (Arch slices costFunc) = NN (appendNet slices) costFunc where
         appendNet :: [Slice] -> [Layer]
         appendNet slices
-                | length slices == 0 || length slices == 1 = [Layer (rfm 0 0) (rfm 0 0) nothingFunc] --nothing layer
-                | length slices == 2 = [Layer (weights (head slices) (jump slices)) (bias $ jump slices) (getActFunc $ jump slices)]
-                | otherwise = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (getActFunc $ jump slices) : appendNet (tail slices)
+                | length slices == 0 || length slices == 1 = [Layer emptyMat emptyMat emptyMat nothingFunc] --nothing layer
+                | length slices == 2 = [constructLayer]
+                | otherwise = constructLayer : appendNet (tail slices)
+
+	constructLayer = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (zed $ jump slices) (getActFunc $ jump slices)
         weights x y = rfm (height y) (height x)
         bias x = rfm (height x) (depth x)
+	zed x = rfm (height x) (depth x)
         getActFunc (Slice shape actFunc) = actFunc
-        nothingFunc = ActFunc ((\x -> x), (\x -> x))
 
-propForward :: Matrix Float -> NN -> Matrix Float
-propForward input (NN layers costFunc) = foldl step input layers where
+apply :: Matrix Float -> NN -> Matrix Float
+apply input (NN layers costFunc) = foldl step input layers where
         step :: Matrix Float -> Layer -> Matrix Float
-        step x (Layer w b (ActFunc (act, act'))) = mapMatrix act $ (w `multiply` x) `addMatrix` b
+        step x (Layer w b z (ActFunc (act, act'))) = mapMatrix act $ (w `multiply` x) `addMatrix` b
+
+propForward :: Matrix Float -> NN -> NN
+--construct a fake input "layer" from the input matrix. this is not pleasant
+propForward input (NN layers costFunc) = NN (scanl step (Layer emptyMat emptyMat input nothingFunc) layers) costFunc where
+        step :: Layer -> Layer -> Layer
+        step (Layer w0 b0 z0 a0) (Layer w1 b1 z1 (ActFunc (act, act'))) = Layer w1 b1 (mapMatrix act $ (w1 `multiply` z0) `addMatrix` b1) $ ActFunc (act, act')
+
+
 
 --layer error is the following error times the following weight matrix times the derivative of the activation function of the inputs to that layer (the value after the matrix multiply with the previous weights)
 --so do we need to store the values from before the activation function?
@@ -57,7 +65,7 @@ mse' :: Vector Float -> Vector Float -> Float
 mse' actual desired = (*) (2/l) (sum (actual `sub` desired) :: Float) where
     l = fromIntegral $ length actual :: Float
 
-muhNetwork = NN [Layer (rfm 1 1) (rfm 1 1) $ ActFunc (relu, relu')] $ CostFunc (mse, mse')
+muhNetwork = NN [Layer (rfm 1 1) (rfm 1 1) (rfm 1 1) $ ActFunc (relu, relu')] $ CostFunc (mse, mse')
 
 jump :: [a] -> a
 jump x = head $ tail x
