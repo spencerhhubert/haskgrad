@@ -47,11 +47,18 @@ descended = descend net grads 1.0
 grabWeights :: NN -> Int -> Matrix Float
 grabWeights (NN layers _) li = grab $ layers !! li where grab (Layer w _ _ _) = w 
 
-initial_network_weights = grabWeights net 3
-descended_network_weights = grabWeights descended 3
+listthem (NN layers _) = map (\(Layer w b z c) -> dimensions w) layers
+
+uhh :: Int
+uhh = length $ listthem propped
+
+bling (NN layers _) = map showLayer layers
+
+initial_network_weights = grabWeights net 0
+descended_network_weights = grabWeights descended 0
 
 main :: IO()
 main = do
-    print $ dimensions initial_network_weights
-    print "\n\n\n"
-    print $ dimensions descended_network_weights 
+    print $ bling net
+    print $ bling propped
+    print $ bling grads

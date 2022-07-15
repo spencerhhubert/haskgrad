@@ -13,30 +13,35 @@ data NN = NN [Layer] CostFunc
 data ActFunc = ActFunc ((Float -> Float), (Float -> Float))
 data CostFunc = CostFunc ((Vector Float -> Vector Float -> Float), (Vector Float -> Vector Float -> Float))
 
+showLayer (Layer w b z c) = (show $ dimensions w) ++ (show $ dimensions b) ++ (show $ dimensions z)
+
 rfm = randomFloatMatrix
 emptyMat = rfm 0 0
 nothingFunc = ActFunc ((\x -> x), (\x -> x))
 
 initNet :: Arch -> NN
-initNet (Arch slices costFunc) = NN (appendNet slices) costFunc where
-        appendNet :: [Slice] -> [Layer]
-        appendNet slices
-                | length slices == 0 || length slices == 1 = [Layer emptyMat emptyMat emptyMat nothingFunc] --nothing layer
-                | length slices == 2 = [constructLayer]
-                | otherwise = constructLayer : appendNet (tail slices)
+initNet (Arch slices costFunc) = NN (appendNet slices) costFunc
 
-	constructLayer = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (zed $ jump slices) (getActFunc $ jump slices)
-        weights x y = rfm (height y) (height x)
-        bias x = rfm (height x) (depth x)
-	zed x = rfm (height x) (depth x)
-        getActFunc (Slice shape actFunc) = actFunc
+appendNet :: [Slice] -> [Layer]
+appendNet slices
+    | length slices == 0 || length slices == 1 = [Layer emptyMat emptyMat emptyMat nothingFunc] --nothing layer
+    | length slices == 2 = [constructLayer]
+    | otherwise = constructLayer : appendNet (tail slices)
+    where
+    constructLayer = Layer (weights (head slices) (jump slices)) (bias $ jump slices) (zed $ jump slices) (getActFunc $ jump slices)
+    weights x y = rfm (height y) (height x)
+    bias x = rfm (height x) (depth x)
+    zed x = rfm (height x) (depth x)
+    getActFunc (Slice shape actFunc) = actFunc
 
 step :: Layer -> Layer -> Layer
 step (Layer w0 b0 z0 a0) (Layer w1 b1 z1 (ActFunc (act, act'))) = Layer w1 b1 (mapMatrix act $ (w1 `multiply` z0) `addMatrix` b1) $ ActFunc (act, act')
 
 propForward :: Matrix Float -> NN -> NN
 --construct a fake input "layer" from the input matrix. this is not pleasant
-propForward input (NN layers costFunc) = NN (scanl step (Layer emptyMat emptyMat input nothingFunc) layers) costFunc
+propForward input (NN layers costFunc) = NN (scanl1 step layersChopped) costFunc where
+    layersChopped = (step emptyLayer $ head layers) : (tail layers)
+    emptyLayer = Layer emptyMat emptyMat input nothingFunc
 
 grabOutput :: NN -> Matrix Float
 grabOutput (NN layers _) = grabZed $ last layers where
