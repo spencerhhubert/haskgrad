@@ -56,18 +56,23 @@ passThrough x nn = grabOutput (propForward x nn)
 gradients :: NN -> Matrix Float -> Matrix Float -> Matrix Float -> NN
 gradients (NN layers (CostFunc (cost, cost'))) input actual desired = NN (reverse (tuneWeights (reverse layers) initialError)) $ CostFunc (cost, cost') where
     initialError :: Matrix Float
-    initialError = [cost' (head actual) (head desired)] `hadamard` (mapMatrix (getAct' $ last layers) (getZed $ last layers))
+    initialError = transpose  [cost' (head $ transpose actual) (head desired)] `hadamard` (mapMatrix (getAct' $ last layers) (getZed $ last layers))
     tuneWeights :: [Layer] -> Matrix Float -> [Layer]
     tuneWeights layers' error
-        | length layers' == 1 = [constructInputLayer $ head layers']
+        | length layers' == 1 = [constructInputLayer $ head layers']  --  4xi * ix8 = 4x8, should be 6x8
         | otherwise = constructLayer (head layers') (jump layers') : tuneWeights (tail layers') constructError 
         where
-            constructLayer :: Layer -> Layer -> Layer
-            constructLayer (Layer w0 b0 y0 z0 c0) (Layer w1 b1 y1 z1 c1) = Layer (error `multiply` y1) b0 y0 z0 c0
+            constructLayer :: Layer -> Layer -> Layer                      --    4x1    x          1x6 = 4x6 ... not sure why. rows are shifted off one. might be because we're looking at outputs of layers as column vectors while they're really row vectors
+            constructLayer (Layer w0 b0 y0 z0 c0) (Layer w1 b1 y1 z1 c1) = Layer (error `multiply` (transpose y1)) b0 y0 z0 c0
             constructError :: Matrix Float
-            constructError = (transpose $ weights $ head layers') `hadamard` (mapMatrix (getAct' $ head layers') (getZed $ head layers'))
+            constructError = (transpose $ weights $ head layers') `hadamard` (mapMatrix (getAct' $ jump layers') (getZed $ jump layers'))
             constructInputLayer :: Layer -> Layer
             constructInputLayer (Layer w b y z c) = Layer (error `multiply` input) b y z c --this is all quite messy
+
+--test :: NN -> Matrix Float -> Matrix Float -> Matrix Float -> Int
+test (NN layers (CostFunc (cost, cost'))) input actual desired = transpose [cost' (head $ transpose actual) (head desired)] `hadamard` (mapMatrix (getAct' $ last layers) (getZed $ last layers))
+--test (NN layers (CostFunc (cost, cost'))) input actual desired = dimensions [cost' (head $ transpose actual) (head desired)]
+--this should be 4x1 but it's 1x1
 
 weights :: Layer -> Matrix Float
 weights (Layer w _ _ _ _) = w
