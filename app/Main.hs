@@ -29,36 +29,39 @@ dcdw = mse' (head s) y
 --end
 --
 
---more experimenting
-input = [[1.0..4.0]]
-expected = [[10.0..14.0]]
+-- --more experimenting
+-- input = [[1.0..4.0]]
+-- expected = [[10.0..14.0]]
 
-actFunc = ActFunc (relu, relu')
-costFunc = CostFunc (mse, mse')
-slices = [Slice (4,1) actFunc, Slice (10,1) actFunc, Slice (10,1) actFunc, Slice (8,1) actFunc, Slice (6,1) actFunc, Slice (4,1) actFunc]
-arch = Arch slices costFunc
-net = initNet arch
+-- actFunc = ActFunc (relu, relu')
+-- costFunc = CostFunc (mse, mse')
+-- slices = [Slice (4,1) actFunc, Slice (10,1) actFunc, Slice (10,1) actFunc, Slice (8,1) actFunc, Slice (6,1) actFunc, Slice (4,1) actFunc]
+-- arch = Arch slices costFunc
+-- net = initNet arch
 
-propped = propForward input net
-output = grabOutput propped
-grads = gradients net output expected
-descended = descend net grads 1.0
+-- propped = propForward input net
+-- output = grabOutput propped
+-- grads = gradients net output expected
+-- descended = descend net grads 1.0
 
-grabWeights :: NN -> Int -> Matrix Float
-grabWeights (NN layers _) li = grab $ layers !! li where grab (Layer w _ _ _) = w 
+-- grabWeights :: NN -> Int -> Matrix Float
+-- grabWeights (NN layers _) li = grab $ layers !! li where grab (Layer w _ _ _ _) = w 
 
-listthem (NN layers _) = map (\(Layer w b z c) -> dimensions w) layers
+-- listthem (NN layers _) = map (\(Layer w b y z c) -> dimensions w) layers
 
-uhh :: Int
-uhh = length $ listthem propped
+-- uhh :: Int
+-- uhh = length $ listthem propped
 
-bling (NN layers _) = map showLayer layers
+-- bling (NN layers _) = map showLayer layers
 
-initial_network_weights = grabWeights net 0
-descended_network_weights = grabWeights descended 0
+-- initial_network_weights = grabWeights net 0
+-- descended_network_weights = grabWeights descended 0
+
+-- main :: IO()
+-- main = do
+--     print $ bling net
+--     print $ bling propped
+--     print $ bling grads
 
 main :: IO()
-main = do
-    print $ bling net
-    print $ bling propped
-    print $ bling grads
+main = print "hello"
