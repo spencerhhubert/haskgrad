@@ -41,8 +41,8 @@ net = initNet arch
 
 propped = propForward input net
 output1 = grabOutput propped
-grads = gradients propped input output1 expected
-descended = descend net grads 1.0
+grads = gradients propped input expected
+descended = descend net 1.0 grads 
 
 grabWeights :: NN -> Int -> Matrix Float
 grabWeights (NN layers _) li = grab $ layers !! li where grab (Layer w _ _ _ _) = w 
@@ -57,9 +57,9 @@ bling (NN layers _) = map showLayer layers
 initial_network_weights = grabWeights net 0
 descended_network_weights = grabWeights descended 0
 
+trained = train net input expected 100 2
+
 main :: IO()
 main = do
-    print $ listthem net
-    print $ listthem propped
-    print $ listthem grads
-    print $ test propped input output1 expected
+--    print $ listthem $ trainStep net input expected 1.0
+    print $ grabOutput trained

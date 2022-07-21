@@ -53,10 +53,10 @@ grabOutput (NN layers _) = grabZed $ last layers where
 passThrough :: Matrix Float -> NN -> Matrix Float
 passThrough x nn = grabOutput (propForward x nn)
 
-gradients :: NN -> Matrix Float -> Matrix Float -> Matrix Float -> NN
-gradients (NN layers (CostFunc (cost, cost'))) input actual desired = NN (reverse (tuneWeights (reverse layers) initialError)) $ CostFunc (cost, cost') where
+gradients :: NN -> Matrix Float -> Matrix Float -> NN
+gradients (NN layers (CostFunc (cost, cost'))) input desired = NN (reverse (tuneWeights (reverse layers) initialError)) $ CostFunc (cost, cost') where
     initialError :: Matrix Float
-    initialError = transpose  [cost' (head $ transpose actual) (head desired)] `hadamard` (mapMatrix (getAct' $ last layers) (getZed $ last layers))
+    initialError = transpose  [cost' (head $ transpose (getZed $ last layers)) (head desired)] `hadamard` (mapMatrix (getAct' $ last layers) (getZed $ last layers))
     tuneWeights :: [Layer] -> Matrix Float -> [Layer]
     tuneWeights layers' error
         | length layers' == 1 = [constructInputLayer $ head layers']  --  4xi * ix8 = 4x8, should be 6x8
@@ -69,11 +69,6 @@ gradients (NN layers (CostFunc (cost, cost'))) input actual desired = NN (revers
             constructInputLayer :: Layer -> Layer
             constructInputLayer (Layer w b y z c) = Layer (error `multiply` input) b y z c --this is all quite messy
 
---test :: NN -> Matrix Float -> Matrix Float -> Matrix Float -> Int
-test (NN layers (CostFunc (cost, cost'))) input actual desired = transpose [cost' (head $ transpose actual) (head desired)] `hadamard` (mapMatrix (getAct' $ last layers) (getZed $ last layers))
---test (NN layers (CostFunc (cost, cost'))) input actual desired = dimensions [cost' (head $ transpose actual) (head desired)]
---this should be 4x1 but it's 1x1
-
 weights :: Layer -> Matrix Float
 weights (Layer w _ _ _ _) = w
 output :: Layer -> Matrix Float --should change to vector
@@ -85,8 +80,8 @@ getZed (Layer _ _ _ z _) = z --these functions really suck
 --todo: need to either remove this vector nonsense or make it so multiplies can take vectors. this might require changing vector and matrix
 --to tensor and make multiply take a tensor type
 
-descend :: NN -> NN -> Float -> NN
-descend network gradients learningRate = zipWithNN (-) network (mapNN (\x -> x*learningRate) gradients)
+descend :: NN -> Float -> NN -> NN
+descend network lr gradients = zipWithNN (-) network (mapNN (\x -> x*lr) gradients)
 
 mapNN :: (Float -> Float) -> NN -> NN
 mapNN f (NN layers costFunc) = NN (map (\(Layer w b y z c) -> Layer (mapMatrix f w) b y z c) layers) costFunc
@@ -95,6 +90,13 @@ zipWithNN :: (Float -> Float -> Float) -> NN -> NN -> NN
 zipWithNN f (NN layers0 costFunc0) (NN layers1 costFunc1) = NN thing costFunc1 where
     thing = zipWith func layers0 layers1
     func = (\(Layer w0 b0 y0 z0 c0) (Layer w1 b1 y1 z1 c1) -> Layer (zipWithMatrix f w0 w1) b0 y0 z0 c0)
+
+trainStep :: NN -> Matrix Float -> Matrix Float -> Float -> NN
+trainStep net input expected lr = descend net lr $ gradients (propForward input net) input expected
+
+train :: NN -> Matrix Float -> Matrix Float -> Float -> Int -> NN
+train net input expected lr times = (!!) (iterate (\x -> trainStep x input expected lr) initialStep) times where
+    initialStep = trainStep net input expected lr
 
 mse :: Vector Float -> Vector Float -> Float
 mse actual desired = (/) (sum $ map (\x -> x^2) (actual `sub` desired) :: Float) l where
