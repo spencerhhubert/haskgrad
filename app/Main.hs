@@ -31,7 +31,7 @@ dcdw = mse' (head s) y
 
 --more experimenting
 input = [[1.0..4.0]]
-expected = [[10.0..14.0]]
+expected = [[1000.0..1003.0]]
 
 actFunc = ActFunc (relu, relu')
 costFunc = CostFunc (mse, mse')
@@ -42,24 +42,25 @@ net = initNet arch
 propped = propForward input net
 output1 = grabOutput propped
 grads = gradients propped input expected
-descended = descend net 1.0 grads 
+descended = descend propped 1.0 grads 
 
 grabWeights :: NN -> Int -> Matrix Float
 grabWeights (NN layers _) li = grab $ layers !! li where grab (Layer w _ _ _ _) = w 
 
 listthem (NN layers _) = map (\(Layer w b y z c) -> map (\x -> show $ dimensions x) [w,b,y,z]) layers
 
-uhh :: Int
-uhh = length $ listthem propped
-
-bling (NN layers _) = map showLayer layers
-
-initial_network_weights = grabWeights net 0
-descended_network_weights = grabWeights descended 0
-
-trained = train net input expected 100 2
+trained = train net input expected 1 1
 
 main :: IO()
 main = do
---    print $ listthem $ trainStep net input expected 1.0
     print $ grabOutput trained
+    print $ grabOutput (propForward input trained)
+    --print $ loss trained expected $ grabOutput trained
+    print $ passThrough input net
+    showMatrix $ grabWeights net 2
+    print $ passThrough input grads
+    showMatrix $ grabWeights grads 2
+    print $ passThrough input descended
+    showMatrix $ grabWeights descended 2
+    --print $ passThrough input trained
+    
